@@ -3,16 +3,104 @@ module pd(
   input reset
 );
 
+//WIRE AND REG DECLARATIONS
+/**************************/
+//Fetch Stage wires & regs
+reg [31:0] pc_f;
+reg [31:0] into_imem_f;
+wire [31:0] inst_f ;
+reg read_write_bit_f;
+wire [31:0] pc_f_plus_4;
+wire [31:0] muxPC_out_f;
+wire [31:0] next_pc_f;
+
+//Decode Stage wires and regs
+//registering inputs from last stage
+reg [31:0] inst_d;
+reg [31:0] pc_d;
+//Other registers and wires used in this stage
+wire [6:0] opcode_d;
+wire [4:0] rd_d;
+wire [2:0] funct3_d;
+wire [4:0] rs1_d;
+wire [4:0] rs2_d;
+wire [4:0] shamt_d;
+wire [6:0] funct7_d;
+wire [31:0] imm_d;
+wire [31:0] data_rs1_d;
+wire [31:0] data_rs2_d;
+wire regwen_d;
+wire brun_d;
+wire muxA_sel_d;
+wire muxB_sel_d;
+wire dmem_write_d;
+wire [1:0] WBsel_d;
+wire [1:0] dmem_access_size_d;
+//Stall Wires
+wire fetch_stall;
+wire decode_stall;
+wire decode_nop;
+wire [1:0] rs1_bypass_d;
+wire [2:0] rs2_bypass_d;
+
+//Execute Stage wires and regs
+//registering inputs from last stage
+reg [31:0] data_rs1_imm_e;
+reg [31:0] data_rs2_imm_e;
+reg [4:0] rd_e;
+reg [31:0] pc_e;
+reg brun_e;
+reg muxA_sel_e;
+reg muxB_sel_e;
+reg dmem_write_e;
+reg [1:0] WBsel_e;
+reg [1:0] dmem_access_size_e;
+reg [6:0] opcode_e;
+reg [2:0] funct3_e;
+reg [6:0] funct7_e;
+reg [31:0] imm_e;
+reg regwen_e;
+reg [1:0] rs1_bypass_e;
+reg [2:0] rs2_bypass_e;
+//wires/registers used in this stage
+wire [31:0] alu_out_e;
+wire pcsel_e_im;
+wire pcsel_e;
+wire [31:0] data_rs1_e;
+wire [31:0] data_rs2_e;
+wire [31:0] data_rs1_bypass;
+wire [31:0] data_rs2_bypass;
+
+//Memory Stage wires and regs
+//registering inputs from last stage
+reg [31:0] pc_m;
+reg [4:0] rd_m;
+reg dmem_write_m;
+reg [1:0] WBsel_m;
+reg [1:0] dmem_access_size_m;
+reg regwen_m;
+reg [31:0] alu_out_m;
+reg [2:0] funct3_m;
+reg [31:0] data_rs2_m;
+reg rs2_bypass_m;
+//wires/registers used in this stage
+wire [31:0] dmem_out_m;
+wire [31:0] data_rd_m;
+
+//Write stage wires and regs
+reg [31:0] data_rd_w;
+reg [4:0] rd_w;
+reg regwen_w;
+reg [31:0] pc_w; 
+/**************************/
+
 initial begin
   pc_f = 32'h01000000;
 end
 
 //FETCH STAGE
 /**************************/
-reg [31:0] pc_f;
-reg [31:0] into_imem_f;
-reg [31:0] inst_f ;
-reg read_write_bit_f;
+assign pc_f_plus_4 = pc_f + 4;
 
 imemory imemory0(
   .clock(clock),
@@ -21,12 +109,6 @@ imemory imemory0(
   .read_write(read_write_bit_f),
   .data_out(inst_f)
 );
-
-wire [31:0] pc_f_plus_4;
-assign pc_f_plus_4 = pc_f + 4;
-
-wire [31:0] muxPC_out_f;
-wire [31:0] next_pc_f;
 
 mux_two_input fetch_stall_mux(
   .in_a(pc_f_plus_4),
@@ -50,16 +132,10 @@ always @(posedge clock) begin
     pc_f <= muxPC_out_f;
   end
 end
-
-
 /**************************/
 
 //DECODE STAGE
 /**************************/
-//registering inputs from last stage
-reg [31:0] inst_d;
-reg [31:0] pc_d;
-
 always @(posedge clock) begin
   if(reset) begin
     inst_d <= 0;
@@ -75,27 +151,6 @@ always @(posedge clock) begin
   end
 end
 
-
-//wires/registers used in this stage
-wire [6:0] opcode_d;
-wire [4:0] rd_d;
-wire [2:0] funct3_d;
-wire [4:0] rs1_d;
-wire [4:0] rs2_d;
-wire [4:0] shamt_d;
-wire [6:0] funct7_d;
-wire [31:0] imm_d;
-wire [31:0] data_rs1_d;
-wire [31:0] data_rs2_d;
-reg regwen_d;
-
-wire brun_d;
-wire muxA_sel_d;
-wire muxB_sel_d;
-wire dmem_write_d;
-wire [1:0] WBsel_d;
-wire [1:0] dmem_access_size_d;
-
 inst_decoder inst_decoder0(
   .inst(inst_d),
   .opcode(opcode_d),
@@ -109,6 +164,7 @@ inst_decoder inst_decoder0(
 );
 
 control control0(
+  .reset(reset),
   .opcode(opcode_d),
   .funct3(funct3_d),
   .rs1(rs1_d),
@@ -137,13 +193,6 @@ register_file register_file0(
   .write_enable(regwen_w)
 );
 
-//stalls n stuff
-wire fetch_stall;
-wire decode_stall;
-wire decode_nop;
-wire [1:0] rs1_bypass_d;
-wire [2:0] rs2_bypass_d;
-
 // assign fetch_stall = ((rs1_d != 0) && ((rs1_d == rd_e) || (rs1_d == rd_m) || (rs1_d == rd_w))) || ((rs2_d != 0) && ((rs2_d == rd_e) || (rs2_d == rd_m) || (rs2_d == rd_w)));
 assign decode_nop = pcsel_e;
 assign decode_stall = pcsel_e | fetch_stall;
@@ -165,25 +214,6 @@ stall_bypass stall_bypass0(
 
 //EXECUTE STAGE
 /**************************/
-//registering inputs from last stage
-reg [31:0] data_rs1_imm_e;
-reg [31:0] data_rs2_imm_e;
-reg [4:0] rd_e;
-reg [31:0] pc_e;
-reg brun_e;
-reg muxA_sel_e;
-reg muxB_sel_e;
-reg dmem_write_e;
-reg [1:0] WBsel_e;
-reg [1:0] dmem_access_size_e;
-reg [6:0] opcode_e;
-reg [2:0] funct3_e;
-reg [6:0] funct7_e;
-reg [31:0] imm_e;
-reg regwen_e;
-reg [1:0] rs1_bypass_e;
-reg [2:0] rs2_bypass_e;
-
 always @(posedge clock) begin
   if(reset) begin
     data_rs1_imm_e <= 0;
@@ -224,15 +254,6 @@ always @(posedge clock) begin
   end
 end
 
-//wires/registers used in this stage
-wire [31:0] alu_out_e;
-wire pcsel_e_im;
-wire pcsel_e;
-wire [31:0] data_rs1_e;
-wire [31:0] data_rs2_e;
-wire [31:0] data_rs1_bypass;
-wire [31:0] data_rs2_bypass;
-
 mux_two_input rs1_bypass_in_mux(
   .in_a(alu_out_m),
   .in_b(data_rd_w),
@@ -260,7 +281,6 @@ mux_two_input rs2_bypass_mux(
   .out(data_rs2_e),
   .sel(rs2_bypass_e[0])
 );
-
 
 //TODO: Not sure if E_BR_TAKEN is set correctly in signals.h
 branch_comp branch_comp0(
@@ -301,18 +321,6 @@ alu alu0(
 
 //Memory STAGE
 /**************************/
-//registering inputs from last stage
-reg [31:0] pc_m;
-reg [4:0] rd_m;
-reg dmem_write_m;
-reg [1:0] WBsel_m;
-reg [1:0] dmem_access_size_m;
-reg regwen_m;
-reg [31:0] alu_out_m;
-reg [2:0] funct3_m;
-reg [31:0] data_rs2_m;
-reg rs2_bypass_m;
-
 always @(posedge clock) begin
   if(reset) begin
     pc_m <= 0;
@@ -339,13 +347,6 @@ always @(posedge clock) begin
   end
 end
 
-
-//wires/registers used in this stage
-wire [31:0] dmem_out_m;
-wire [1:0] dmem_access_size_m;
-wire [31:0] data_rd_m;
-
-
 dmemory dmemory0(
   .clock(clock),
   .address(alu_out_m),
@@ -364,16 +365,10 @@ mux_four_input MuxWB(
   .out(data_rd_m),
   .sel(WBsel_m)
 );
-
 /**************************/
 
 //Write STAGE
 /**************************/
-reg [31:0] data_rd_w;
-reg [4:0] rd_w;
-reg regwen_w;
-reg [31:0] pc_w; 
-
 always @(posedge clock) begin
   if(reset) begin
     data_rd_w <= 0;
@@ -387,16 +382,7 @@ always @(posedge clock) begin
     pc_w <= pc_m;
   end
 end
-//insert stuff here
-
 /**************************/
-
-//RESET
-/**************************/
-
-always @(reset) begin
-  regwen_d = 0;
-end
 
 endmodule
 
