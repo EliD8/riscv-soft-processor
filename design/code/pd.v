@@ -353,7 +353,6 @@ dmemory dmemory0(
   .data_in(data_rs2_m),
   .read_write(dmem_write_m),
   .access_size(dmem_access_size_m),
-  .sign_ext(!(funct3_m[2])),
   .data_out(dmem_out_m)
 );
 
