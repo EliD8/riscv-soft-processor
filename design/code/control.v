@@ -1,4 +1,5 @@
 module control(
+  input wire reset,
   input wire [6:0] opcode,
   input wire [14:12] funct3,
   input wire [19:15] rs1,
@@ -27,7 +28,9 @@ always @(*) begin
 
 
   //Determining Register write
-  if(opcode == 7'b0110011 || opcode == 7'b0010011 || opcode == 7'b0000011 || opcode == 7'b1101111 || opcode == 7'b0010111 || opcode == 7'b0110111 || opcode == 7'b1100111)begin
+  if(reset == 1'b1) begin
+    regwen = 1'b0;
+  end else if(opcode == 7'b0110011 || opcode == 7'b0010011 || opcode == 7'b0000011 || opcode == 7'b1101111 || opcode == 7'b0010111 || opcode == 7'b0110111 || opcode == 7'b1100111)begin
     regwen = 1'b1;
   end else begin
     regwen = 1'b0;
