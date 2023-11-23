@@ -3,7 +3,7 @@
 // ----- signals -----
 // You will also need to define PC properly
 `define F_PC                pc_f
-`define F_INSN              inst_v
+`define F_INSN              inst_f
 
 `define D_PC                pc_d
 `define D_OPCODE            opcode_d
@@ -27,7 +27,7 @@
 `define E_ALU_RES           alu_out_e
 `define E_BR_TAKEN          pcsel_e
 
-`define M_PC                pc_e
+`define M_PC                pc_m
 `define M_ADDRESS           alu_out_m
 `define M_RW                dmem_write_m
 `define M_SIZE_ENCODED      dmem_access_size_m

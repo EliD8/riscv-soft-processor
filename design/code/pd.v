@@ -7,16 +7,14 @@ module pd(
 /**************************/
 //Fetch Stage wires & regs
 reg [31:0] pc_f;
-reg [31:0] into_imem_f;
 wire [31:0] inst_f ;
-reg read_write_bit_f;
 wire [31:0] pc_f_plus_4;
 wire [31:0] muxPC_out_f;
 wire [31:0] next_pc_f;
 
 //Decode Stage wires and regs
 //registering inputs from last stage
-reg [31:0] inst_d;
+wire [31:0] inst_d;
 reg [31:0] pc_d;
 //Other registers and wires used in this stage
 wire [6:0] opcode_d;
@@ -40,13 +38,14 @@ wire [1:0] dmem_access_size_d;
 wire fetch_stall;
 wire decode_stall;
 wire decode_nop;
+reg decode_nop_d;
 wire [1:0] rs1_bypass_d;
 wire [2:0] rs2_bypass_d;
 
 //Execute Stage wires and regs
 //registering inputs from last stage
-reg [31:0] data_rs1_imm_e;
-reg [31:0] data_rs2_imm_e;
+wire [31:0] data_rs1_imm_e;
+wire [31:0] data_rs2_imm_e;
 reg [4:0] rd_e;
 reg [31:0] pc_e;
 reg brun_e;
@@ -88,10 +87,12 @@ wire [31:0] dmem_out_m;
 wire [31:0] data_rd_m;
 
 //Write stage wires and regs
+reg [31:0] data_rd_imm_w;
 reg [31:0] data_rd_w;
 reg [4:0] rd_w;
 reg regwen_w;
 reg [31:0] pc_w; 
+reg WBsel_w;
 /**************************/
 
 initial begin
@@ -105,8 +106,9 @@ assign pc_f_plus_4 = pc_f + 4;
 imemory imemory0(
   .clock(clock),
   .address(pc_f),
-  .data_in(into_imem_f),
-  .read_write(read_write_bit_f),
+  .data_in(0),
+  .read_write(0),
+  .enable(~fetch_stall),
   .data_out(inst_f)
 );
 
@@ -138,18 +140,28 @@ end
 /**************************/
 always @(posedge clock) begin
   if(reset) begin
-    inst_d <= 0;
+    // inst_d <= 0;
     pc_d <= 0;
+    decode_nop_d <= 0;
   end else begin
     if(decode_nop) begin
-      inst_d <= 0;
+      // inst_d <= 0;
       pc_d <= 0;
+      decode_nop_d <= 1;
     end else begin
-      inst_d <= (fetch_stall) ? inst_d : inst_f;
+      // inst_d <= (fetch_stall) ? inst_d : inst_f;
       pc_d <= (fetch_stall) ? pc_d : pc_f;
+      decode_nop_d <= 0;
     end
   end
 end
+
+mux_two_input mux_clear_inst(
+  .in_a(inst_f),
+  .in_b(0),
+  .out(inst_d),
+  .sel(decode_nop_d)
+);
 
 inst_decoder inst_decoder0(
   .inst(inst_d),
@@ -216,8 +228,8 @@ stall_bypass stall_bypass0(
 /**************************/
 always @(posedge clock) begin
   if(reset) begin
-    data_rs1_imm_e <= 0;
-    data_rs2_imm_e <= 0;
+    // data_rs1_imm_e <= 0;
+    // data_rs2_imm_e <= 0;
     rd_e <= 0;
     pc_e <= 0;
     brun_e <= 0;
@@ -234,8 +246,8 @@ always @(posedge clock) begin
     rs1_bypass_e <= 0;
     rs2_bypass_e <= 0;
   end else begin
-    data_rs1_imm_e <= (decode_stall) ? 0 : data_rs1_d;
-    data_rs2_imm_e <= (decode_stall) ? 0 : data_rs2_d;
+    // data_rs1_imm_e <= (decode_stall) ? 0 : data_rs1_d;
+    // data_rs2_imm_e <= (decode_stall) ? 0 : data_rs2_d;
     rd_e <= (decode_stall) ? 0 : rd_d;
     pc_e <= (decode_stall) ? 0 : pc_d;
     brun_e <= (decode_stall) ? 0 : brun_d;
@@ -253,6 +265,22 @@ always @(posedge clock) begin
     rs2_bypass_e <= (decode_stall) ? 0 : rs2_bypass_d;
   end
 end
+
+// mux_two_input decode_stall_data1(
+//   .in_a(data_rs1_d),
+//   .in_b(0),
+//   .out(data_rs1_imm_e),
+//   .sel(decode_stall)
+// );
+
+// mux_two_input decode_stall_data2(
+//   .in_a(data_rs2_d),
+//   .in_b(0),
+//   .out(data_rs2_imm_e),
+//   .sel(decode_stall)
+// );
+assign data_rs1_imm_e = data_rs1_d;
+assign data_rs2_imm_e = data_rs2_d;
 
 mux_two_input rs1_bypass_in_mux(
   .in_a(alu_out_m),
@@ -356,31 +384,49 @@ dmemory dmemory0(
   .data_out(dmem_out_m)
 );
 
-mux_four_input MuxWB(
-  .in_a(dmem_out_m),
-  .in_b(alu_out_m),
-  .in_c(pc_m + 4),
-  .in_d(),
+mux_two_input MuxMem(
+  .in_a(alu_out_m),
+  .in_b(pc_m + 4),
   .out(data_rd_m),
-  .sel(WBsel_m)
+  .sel(WBsel_m[0])
 );
+
+// mux_four_input MuxWB(
+//   .in_a(dmem_out_m),
+//   .in_b(alu_out_m),
+//   .in_c(pc_m + 4),
+//   .in_d(),
+//   .out(data_rd_m),
+//   .sel(WBsel_m)
+// );
 /**************************/
 
 //Write STAGE
 /**************************/
 always @(posedge clock) begin
   if(reset) begin
-    data_rd_w <= 0;
+    data_rd_imm_w <= 0;
+    // data_rd_w <= 0;
     rd_w <= 0;
     regwen_w <= 0;
     pc_w <= 0;
+    WBsel_w <= 0;
   end else begin
-    data_rd_w <= data_rd_m;
+    data_rd_imm_w <= data_rd_m;
+    // data_rd_w <= data_rd_m;
     rd_w <= rd_m;
     regwen_w <= regwen_m;
     pc_w <= pc_m;
+    WBsel_w <= WBsel_m[1];
   end
 end
+
+mux_two_input MuxWrite(
+  .in_a(data_rd_imm_w),
+  .in_b(dmem_out_m),
+  .out(data_rd_w),
+  .sel(WBsel_w)
+);
 /**************************/
 
 endmodule

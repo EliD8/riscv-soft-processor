@@ -61,11 +61,11 @@ always @(*) begin
 
 
   if (opcode == 7'b0000011) begin   //LOAD instructions
-    wbsel = 2'b00;
-  end else if (opcode == 7'b1100111 || opcode == 7'b1101111) begin    //JAL and JALR instructions
     wbsel = 2'b10;
-  end else begin        //All other instructions, where output comes from ALU or is not used (default to ALU out)
+  end else if (opcode == 7'b1100111 || opcode == 7'b1101111) begin    //JAL and JALR instructions
     wbsel = 2'b01;
+  end else begin        //All other instructions, where output comes from ALU or is not used (default to ALU out)
+    wbsel = 2'b00;
   end
 
   dmem_access_size = funct3[13:12];

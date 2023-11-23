@@ -18,6 +18,7 @@ always@(*) begin
   if(rs1_d != 0) begin
     if(rs1_d == rd_e) begin
       //rs1 is only ever needed in E, see if we can bypass from M to E, else stall
+      //LOAD, JAL, JALR
       if((opcode_e == 7'b0000011) || (opcode_e == 7'b1101111) || (opcode_e == 7'b1100111)) begin
         //required output not availible from M, stall
         stall_1 = 1;
