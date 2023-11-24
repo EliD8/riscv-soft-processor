@@ -88,7 +88,7 @@ wire [31:0] data_rd_m;
 
 //Write stage wires and regs
 reg [31:0] data_rd_imm_w;
-reg [31:0] data_rd_w;
+wire [31:0] data_rd_w;
 reg [4:0] rd_w;
 reg regwen_w;
 reg [31:0] pc_w; 
