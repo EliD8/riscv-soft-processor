@@ -91,7 +91,7 @@ reg [31:0] data_rd_imm_w;
 wire [31:0] data_rd_w;
 reg [4:0] rd_w;
 reg regwen_w;
-reg [31:0] pc_w; 
+(* dont_touch = "true" *) reg [31:0] pc_w; 
 reg WBsel_w;
 /**************************/
 
@@ -217,6 +217,7 @@ stall_bypass stall_bypass0(
   .rd_w(rd_w),
   .opcode_d(opcode_d),
   .opcode_e(opcode_e),
+  .reset(reset),
   .fetch_stall(fetch_stall),
   .rs1_bypass(rs1_bypass_d),
   .rs2_bypass(rs2_bypass_d)

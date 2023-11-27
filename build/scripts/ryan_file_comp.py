@@ -3,9 +3,6 @@ import re
 
 BENCHMARKS_PATH = "../../../rv32-benchmarks/"
 
-total_tests = 0
-tests_passed = 0
-
 trace_line_syntax = re.compile(f"\\[W\\]\\s+[0-9a-f]{{8}}\\s+(0|1)\\s+[0-9a-f]{{2}}\\s+[0-9a-f]{{8}}")
 
 def compare_trace_files(file_a:str, file_b:str):
@@ -89,6 +86,10 @@ def parse_trace(source_file:str, dest_file:str):
 
 
 def run_build_program(program_name: str, program_path:str, command: str):
+    print(f"Building bitstream for {program_name}")
+    os.system(f"mkdir -p ryan_output/logs")
+    os.system(f"make clean")
+    os.system(f"make bitstream MEM_PATH={program_path}{program_name}.x > ryan_output/logs/bitstream_{program_name}")
     print(f"Running {command} for {program_name}")
     os.system(f"mkdir -p ryan_output/{command}")
     os.system(f"make {command} MEM_PATH={program_path}{program_name}.x > ryan_output/{command}/temp.trace")
@@ -104,9 +105,12 @@ ind_programs_names = [os.path.splitext(p)[0] for p in ind_programs_files]
 
 os.system(f"mkdir -p ryan_output")
 os.system(f"mkdir -p ryan_output/test_pd")
+
+total_tests = 0
+tests_passed = 0
+failed_tests = []
 for file_name in ind_programs_names:
-    run_build_program(file_name, f"{BENCHMARKS_PATH}individual-instructions/", "post-synth-sim")
-    
+    run_build_program(file_name, f"{BENCHMARKS_PATH}individual-instructions/", "post-synth-sim")    
 
     parse_trace(source_file = f"../../verif/sim/verilator/test_pd/{file_name}.trace", dest_file = f"ryan_output/test_pd/{file_name}.trace", )
 
@@ -115,10 +119,14 @@ for file_name in ind_programs_names:
         print(f"No differences detected for test {file_name}")
         tests_passed += 1
     else:
+        failed_tests += [(file_name, diff)]
         print(f"{diff} differences detected for test {file_name}")
     total_tests += 1
 
+print("-----------------------------------------------------------------------")
 print(f"Passed: {tests_passed}/{total_tests}")
-
-
-# print("total differences: " + compare_trace_files("rv32ui-p-add.trace", "../ryan_out.txt"))
+if total_tests-tests_passed > 0:
+    print("Failed Tests:")
+for i in range(total_tests-tests_passed):
+    print(f"{failed_tests[i][1]} differences detected for test {failed_tests[i][0]}")
+print("-----------------------------------------------------------------------")

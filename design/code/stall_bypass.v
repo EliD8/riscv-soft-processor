@@ -6,6 +6,7 @@ module stall_bypass(
   input wire [4:0] rd_w,
   input wire [6:0] opcode_d,
   input wire [6:0] opcode_e,
+  input wire reset,
   output reg fetch_stall,
   output reg [1:0] rs1_bypass,
   output reg [2:0] rs2_bypass
@@ -77,7 +78,7 @@ always@(*) begin
     rs2_bypass = 0;
   end
 
-  fetch_stall = stall_1 | stall_2;
+  fetch_stall = (stall_1 | stall_2 | reset);
 end
 
 endmodule

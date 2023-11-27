@@ -8,6 +8,7 @@ module imemory(
 );
     wire       [31:0] address_2;
     wire       [31:0] ea;
+    wire       [31:0] ea_2;                                           // ADD
     wire       [31:0] data_in_2;
     wire              read_write_2;
     localparam        START_ADDR = 32'h01000000;
@@ -19,11 +20,12 @@ module imemory(
     end
 
     assign ea = (address - START_ADDR) >> 2;
+    assign ea_2 = (address_2 - START_ADDR) >> 2;                      // ADD
 
     always @(posedge clock) begin
         if (enable) begin
             if (read_write_2 == 1) begin
-                mem[ea] <= data_in_2;
+                mem[ea_2] <= data_in_2;                               // MODIFY
             end
             data_out <= mem[ea];
         end
