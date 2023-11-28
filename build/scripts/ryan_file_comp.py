@@ -45,7 +45,7 @@ def compare_trace_files(file_a:str, file_b:str):
         
         if((line_a_writeback != '0' and line_a_rd != "00") or (line_b_writeback != '0' and line_b_rd != "00")):
            if(not a_lines[i] == b_lines[i]):
-            #    print(f"Difference on line {i+1}: line a: {a_lines[i][0:-2]}, line b: {b_lines[i][0:-2]}")
+               print(f"Difference on line {i+1}: line a: {a_lines[i][0:-2]}, line b: {b_lines[i][0:-2]}")
                differences += 1
 
     # for i in range(min_lines, len(longer_file)):
@@ -87,8 +87,8 @@ def parse_trace(source_file:str, dest_file:str):
 
 def run_build_program(program_name: str, program_path:str, command: str):
     print(f"Building bitstream for {program_name}")
-    os.system(f"mkdir -p ryan_output/logs")
     os.system(f"make clean")
+    os.system(f"mkdir -p ryan_output/logs")
     os.system(f"make bitstream MEM_PATH={program_path}{program_name}.x > ryan_output/logs/bitstream_{program_name}")
     print(f"Running {command} for {program_name}")
     os.system(f"mkdir -p ryan_output/{command}")
@@ -99,34 +99,80 @@ def run_build_program(program_name: str, program_path:str, command: str):
     os.system(f"rm ryan_output/{command}/temp.trace")
 
 
+def make_new_tcl(time: int):
+    os.system(f"echo \"run {time}ns\" > xsim.tcl")
+    os.system(f"echo \"exit\" >> xsim.tcl")
+
+
 all_ind_files = os.listdir(f"{BENCHMARKS_PATH}individual-instructions/")
 ind_programs_files = [file for file in all_ind_files if file.endswith('.x')]
 ind_programs_names = [os.path.splitext(p)[0] for p in ind_programs_files]
 
+all_simple_files = os.listdir(f"{BENCHMARKS_PATH}simple-programs/")
+simple_programs_files = [file for file in all_simple_files if file.endswith('.x')]
+simple_programs_names = [os.path.splitext(p)[0] for p in simple_programs_files]
+
 os.system(f"mkdir -p ryan_output")
 os.system(f"mkdir -p ryan_output/test_pd")
 
-total_tests = 0
-tests_passed = 0
-failed_tests = []
+make_new_tcl(2000)
+ind_total_tests = 0
+ind_tests_passed = 0
+ind_failed_tests = []
 for file_name in ind_programs_names:
-    run_build_program(file_name, f"{BENCHMARKS_PATH}individual-instructions/", "post-synth-sim")    
+    break
+    # run_build_program(file_name, f"{BENCHMARKS_PATH}individual-instructions/", "post-synth-sim")
+    # run_build_program(file_name, f"{BENCHMARKS_PATH}individual-instructions/", "routed-sim")
 
-    parse_trace(source_file = f"../../verif/sim/verilator/test_pd/{file_name}.trace", dest_file = f"ryan_output/test_pd/{file_name}.trace", )
+    # parse_trace(source_file = f"../../verif/sim/verilator/test_pd/{file_name}.trace", dest_file = f"ryan_output/test_pd/{file_name}.trace", )
 
     diff = compare_trace_files(f"ryan_output/test_pd/{file_name}.trace", f"ryan_output/post-synth-sim/{file_name}.trace")
     if diff == 0:
         print(f"No differences detected for test {file_name}")
-        tests_passed += 1
+        ind_tests_passed += 1
     else:
-        failed_tests += [(file_name, diff)]
+        ind_failed_tests += [(file_name, diff)]
         print(f"{diff} differences detected for test {file_name}")
-    total_tests += 1
+    ind_total_tests += 1
+
+
+make_new_tcl(10000)
+simple_total_tests = 0
+simple_tests_passed = 0
+simple_failed_tests = []
+for file_name in simple_programs_names:
+    # run_build_program(file_name, f"{BENCHMARKS_PATH}simple-programs/", "post-synth-sim")
+    # run_build_program(file_name, f"{BENCHMARKS_PATH}simple-programs/", "routed-sim")
+
+    # parse_trace(source_file = f"../../verif/sim/verilator/test_pd/{file_name}.trace", dest_file = f"ryan_output/test_pd/{file_name}.trace", )
+
+    diff = compare_trace_files(f"ryan_output/test_pd/{file_name}.trace", f"ryan_output/post-synth-sim/{file_name}.trace")
+    if diff == 0:
+        print(f"No differences detected for test {file_name}")
+        simple_tests_passed += 1
+    else:
+        simple_failed_tests += [(file_name, diff)]
+        print(f"{diff} differences detected for test {file_name}")
+    simple_total_tests += 1
+    break
+
+
+
 
 print("-----------------------------------------------------------------------")
-print(f"Passed: {tests_passed}/{total_tests}")
-if total_tests-tests_passed > 0:
+print(f"Passed: {ind_tests_passed}/{ind_total_tests}")
+if ind_total_tests - ind_tests_passed > 0:
     print("Failed Tests:")
-for i in range(total_tests-tests_passed):
-    print(f"{failed_tests[i][1]} differences detected for test {failed_tests[i][0]}")
+    for i in range(ind_total_tests - ind_tests_passed):
+        print(f"{ind_failed_tests[i][1]} differences detected for test {ind_failed_tests[i][0]}")
 print("-----------------------------------------------------------------------")
+
+print("-----------------------------------------------------------------------")
+print(f"Passed: {simple_tests_passed}/{simple_total_tests}")
+if simple_total_tests - simple_tests_passed > 0:
+    print("Failed Tests:")
+    for i in range(simple_total_tests - simple_tests_passed):
+        print(f"{simple_failed_tests[i][1]} differences detected for test {simple_failed_tests[i][0]}")
+print("-----------------------------------------------------------------------")
+
+
