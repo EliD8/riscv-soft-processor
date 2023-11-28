@@ -9,3 +9,4 @@ mux_two_in.v
 pd.v
 register_file.v
 stall_bypass.v
+access_size.v

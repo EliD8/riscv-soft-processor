@@ -90,8 +90,11 @@ wire [31:0] data_rd_m;
 reg [31:0] data_rd_imm_w;
 wire [31:0] data_rd_w;
 reg [4:0] rd_w;
+reg [1:0] dmem_access_size_w;
+reg dmem_sign_ext_w;
 reg regwen_w;
 (* dont_touch = "true" *) reg [31:0] pc_w; 
+wire [31:0] dmem_out_sized_w;
 reg WBsel_w;
 /**************************/
 
@@ -108,7 +111,7 @@ imemory imemory0(
   .address(pc_f),
   .data_in(0),
   .read_write(0),
-  .enable(~fetch_stall),
+  .enable(~fetch_stall | reset),
   .data_out(inst_f)
 );
 
@@ -411,6 +414,8 @@ always @(posedge clock) begin
     rd_w <= 0;
     regwen_w <= 0;
     pc_w <= 0;
+    dmem_access_size_w <= 0;
+    dmem_sign_ext_w <= 0;
     WBsel_w <= 0;
   end else begin
     data_rd_imm_w <= data_rd_m;
@@ -418,13 +423,22 @@ always @(posedge clock) begin
     rd_w <= rd_m;
     regwen_w <= regwen_m;
     pc_w <= pc_m;
+    dmem_access_size_w <= dmem_access_size_m;
+    dmem_sign_ext_w <= !(funct3_m[2]);
     WBsel_w <= WBsel_m[1];
   end
 end
 
+access_size access_size0(
+  .data_in(dmem_out_m),
+  .access_size(dmem_access_size_w),
+  .sign_ext(dmem_sign_ext_w),
+  .data_out(dmem_out_sized_w)
+);
+
 mux_two_input MuxWrite(
   .in_a(data_rd_imm_w),
-  .in_b(dmem_out_m),
+  .in_b(dmem_out_sized_w),
   .out(data_rd_w),
   .sel(WBsel_w)
 );
