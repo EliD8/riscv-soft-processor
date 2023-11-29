@@ -2,10 +2,15 @@ import os
 import re
 
 BENCHMARKS_PATH = "../../../rv32-benchmarks/"
+# PROGRAM_TESTED = "post-synth-sim"
+PROGRAM_TESTED = "routed-sim"
 
 trace_line_syntax = re.compile(f"\\[W\\]\\s+[0-9a-f]{{8}}\\s+(0|1)\\s+[0-9a-f]{{2}}\\s+[0-9a-f]{{8}}")
 
 
+# returns a tuple of 2 values
+# first value is 1 if passed, 0 if failed
+# secodnd value is a string containing the outcome
 def get_status(benchmark_path, file_path, file_name):
     with open(f"{benchmark_path}{file_name}.d") as fin :
         lines = fin.readlines()
@@ -22,11 +27,12 @@ def get_status(benchmark_path, file_path, file_name):
     fail_loc = lines[fail_loc][0:8]
     pass_fetch = re.compile(f"\\[W\\]\\s*{pass_loc}")
     fail_fetch = re.compile(f"\\[W\\]\\s*{fail_loc}")
+    fail_nop_fetch = re.compile(f"\\[W\\]\\s*{fail_loc} (0|1 00 00000000)")
 
     with open(f"{file_path}{file_name}.trace") as fin :
         lines = fin.readlines()
     for line in lines:
-        if(fail_fetch.search(line)):
+        if(fail_fetch.search(line) and fail_nop_fetch.search(line) == None):
             return 0, "FAIL"
     for line in lines:
         if(pass_fetch.search(line)):
@@ -45,13 +51,13 @@ def compare_trace_files(file_a:str, file_b:str):
 
     if(len(a_lines) < len(b_lines)):
         min_lines = len(a_lines)
-        longer_file = b_lines
+        longer_file = b_lines       # was used in code at bottom of function
     elif(len(a_lines) > len(b_lines)):
         min_lines = len(b_lines)
-        longer_file = a_lines
+        longer_file = a_lines       # was used in code at bottom of function
     else:
         min_lines = len(a_lines)
-        longer_file = []
+        longer_file = []            # was used in code at bottom of function
     
     line_writeback = re.compile(f"\\[W\\]\\s+[0-9a-f]+\\s+")
     line_rd = re.compile(f"\\[W\\]\\s+[0-9a-f]+\\s+(0|1)\\s+")
@@ -77,6 +83,9 @@ def compare_trace_files(file_a:str, file_b:str):
            if(not a_lines[i] == b_lines[i]):
             #    print(f"Difference on line {i+1}: line a: {a_lines[i][0:-2]}, line b: {b_lines[i][0:-2]}")
                differences += 1
+
+    # These commented lines check if there are any funtional lines in one file after the other file ends.
+    # This isn't useful as execution after the end of the program is undefined so nothing can be concluded from it
 
     # for i in range(min_lines, len(longer_file)):
     #     line_writeback_match = line_writeback.match(longer_file[i])
@@ -155,12 +164,11 @@ ind_total_tests = 0
 ind_tests_passed = 0
 ind_failed_tests = []
 for file_name in ind_programs_names:
-    run_build_program(file_name, f"{BENCHMARKS_PATH}individual-instructions/", "post-synth-sim")
-    # run_build_program(file_name, f"{BENCHMARKS_PATH}individual-instructions/", "routed-sim")
+    run_build_program(file_name, f"{BENCHMARKS_PATH}individual-instructions/", PROGRAM_TESTED)
 
     parse_trace(source_file = f"../../verif/sim/verilator/test_pd/{file_name}.trace", dest_file = f"ryan_output/test_pd/{file_name}.trace", )
 
-    diff = compare_trace_files(f"ryan_output/test_pd/{file_name}.trace", f"ryan_output/post-synth-sim/{file_name}.trace")
+    diff = compare_trace_files(f"ryan_output/test_pd/{file_name}.trace", f"ryan_output/{PROGRAM_TESTED}/{file_name}.trace")
     if diff == 0:
         print(f"No differences detected for test {file_name}")
         ind_tests_passed += 1
@@ -175,12 +183,11 @@ simple_total_tests = 0
 simple_tests_passed = 0
 simple_failed_tests = []
 for file_name in simple_programs_names:
-    run_build_program(file_name, f"{BENCHMARKS_PATH}simple-programs/", "post-synth-sim")
-    # run_build_program(file_name, f"{BENCHMARKS_PATH}simple-programs/", "routed-sim")
+    run_build_program(file_name, f"{BENCHMARKS_PATH}simple-programs/", PROGRAM_TESTED)
 
     # parse_trace(source_file = f"../../verif/sim/verilator/test_pd/{file_name}.trace", dest_file = f"ryan_output/test_pd/{file_name}.trace", )
 
-    diff = compare_trace_files(f"ryan_output/test_pd/{file_name}.trace", f"ryan_output/post-synth-sim/{file_name}.trace")
+    diff = compare_trace_files(f"ryan_output/test_pd/{file_name}.trace", f"ryan_output/{PROGRAM_TESTED}/{file_name}.trace")
     if diff == 0:
         print(f"No differences detected for test {file_name}")
         simple_tests_passed += 1
@@ -202,9 +209,9 @@ print("-----------------------------------------------------------------------")
 
 ind_total_tests = 0
 ind_tests_passed = 0
-for p in ind_programs_names:
-    result = get_status(f"{BENCHMARKS_PATH}individual-instructions/", f"ryan_output/post-synth-sim/", p)
-    print(f"Program: {p},   \tStatus: {result[1]}")
+for file_name in ind_programs_names:
+    result = get_status(f"{BENCHMARKS_PATH}individual-instructions/", f"ryan_output/{PROGRAM_TESTED}/", file_name)
+    print(f"Program: {file_name},   \tStatus: {result[1]}")
     ind_tests_passed += result[0]
     ind_total_tests += 1
 print(f"Passed: {ind_tests_passed}/{ind_total_tests}")
@@ -219,9 +226,9 @@ print("-----------------------------------------------------------------------")
 
 simple_total_tests = 0
 simple_tests_passed = 0
-for p in simple_programs_names:
-    result = get_status(f"{BENCHMARKS_PATH}simple-programs/", f"ryan_output/post-synth-sim/", p)
-    print(f"Program: {p},   \tStatus: {result[1]}")
+for file_name in simple_programs_names:
+    result = get_status(f"{BENCHMARKS_PATH}simple-programs/", f"ryan_output/{PROGRAM_TESTED}/", file_name)
+    print(f"Program: {file_name},   \tStatus: {result[1]}")
     simple_tests_passed += result[0]
     simple_total_tests += 1
 print(f"Passed: {simple_tests_passed}/{simple_total_tests}")
