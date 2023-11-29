@@ -25,17 +25,17 @@ def get_status(benchmark_path, file_path, file_name):
         return 0, "Unable to decode .d file"
     pass_loc = lines[pass_loc][0:8]
     fail_loc = lines[fail_loc][0:8]
-    pass_fetch = re.compile(f"\\[W\\]\\s*{pass_loc}")
-    fail_fetch = re.compile(f"\\[W\\]\\s*{fail_loc}")
-    fail_nop_fetch = re.compile(f"\\[W\\]\\s*{fail_loc} (0|1 00 00000000)")
+    pass_writeback = re.compile(f"\\[W\\]\\s*{pass_loc}")
+    fail_writeback = re.compile(f"\\[W\\]\\s*{fail_loc}")
+    fail_nop_writeback = re.compile(f"\\[W\\]\\s*{fail_loc} (0|1 00 00000000)")
 
     with open(f"{file_path}{file_name}.trace") as fin :
         lines = fin.readlines()
     for line in lines:
-        if(fail_fetch.search(line) and fail_nop_fetch.search(line) == None):
+        if(fail_writeback.search(line) and fail_nop_writeback.search(line) == None):
             return 0, "FAIL"
     for line in lines:
-        if(pass_fetch.search(line)):
+        if(pass_writeback.search(line)):
             return 1, "PASS"
     return 0, "Unable to find pass or fail criteria"
 
@@ -124,11 +124,9 @@ def parse_trace(source_file:str, dest_file:str):
 
 
 
+# runs the given make command for the given program located at the given path
+# puts the output trace file in ryan_output/{command}
 def run_build_program(program_name: str, program_path:str, command: str):
-    # print(f"Building bitstream for {program_name}")
-    # os.system(f"make clean")
-    # os.system(f"mkdir -p ryan_output/logs")
-    # os.system(f"make bitstream MEM_PATH={program_path}{program_name}.x > ryan_output/logs/bitstream_{program_name}")
     print(f"Running {command} for {program_name}")
     os.system(f"mkdir -p ryan_output/{command}")
     os.system(f"make {command} MEM_PATH={program_path}{program_name}.x > ryan_output/{command}/temp.trace")
@@ -138,9 +136,15 @@ def run_build_program(program_name: str, program_path:str, command: str):
     os.system(f"rm ryan_output/{command}/temp.trace")
 
 
+# Makes a new tcl file with the given simuation time
 def make_new_tcl(time: int):
     os.system(f"echo \"run {time}ns\" > xsim.tcl")
     os.system(f"echo \"exit\" >> xsim.tcl")
+
+
+
+
+
 
 
 all_ind_files = os.listdir(f"{BENCHMARKS_PATH}individual-instructions/")
@@ -170,11 +174,11 @@ for file_name in ind_programs_names:
 
     diff = compare_trace_files(f"ryan_output/test_pd/{file_name}.trace", f"ryan_output/{PROGRAM_TESTED}/{file_name}.trace")
     if diff == 0:
-        print(f"No differences detected for test {file_name}")
+        # print(f"No differences detected for test {file_name}")
         ind_tests_passed += 1
     else:
         ind_failed_tests += [(file_name, diff)]
-        print(f"{diff} differences detected for test {file_name}")
+        # print(f"{diff} differences detected for test {file_name}")
     ind_total_tests += 1
 
 
@@ -185,24 +189,25 @@ simple_failed_tests = []
 for file_name in simple_programs_names:
     run_build_program(file_name, f"{BENCHMARKS_PATH}simple-programs/", PROGRAM_TESTED)
 
-    # parse_trace(source_file = f"../../verif/sim/verilator/test_pd/{file_name}.trace", dest_file = f"ryan_output/test_pd/{file_name}.trace", )
+    parse_trace(source_file = f"../../verif/sim/verilator/test_pd/{file_name}.trace", dest_file = f"ryan_output/test_pd/{file_name}.trace", )
 
     diff = compare_trace_files(f"ryan_output/test_pd/{file_name}.trace", f"ryan_output/{PROGRAM_TESTED}/{file_name}.trace")
     if diff == 0:
-        print(f"No differences detected for test {file_name}")
+        # print(f"No differences detected for test {file_name}")
         simple_tests_passed += 1
     else:
         simple_failed_tests += [(file_name, diff)]
-        print(f"{diff} differences detected for test {file_name}")
+        # print(f"{diff} differences detected for test {file_name}")
     simple_total_tests += 1
 
 
 
 
 print("-----------------------------------------------------------------------")
-print(f"Passed: {ind_tests_passed}/{ind_total_tests}")
+print("Comapred Individual Instructions tests with results from test_pd.")
+print(f"Functionally Idential: {ind_tests_passed}/{ind_total_tests}")
 if ind_total_tests - ind_tests_passed > 0:
-    print("Failed Tests:")
+    print("Different Traces:")
     for i in range(ind_total_tests - ind_tests_passed):
         print(f"{ind_failed_tests[i][1]} differences detected for test {ind_failed_tests[i][0]}")
 print("-----------------------------------------------------------------------")
@@ -217,9 +222,10 @@ for file_name in ind_programs_names:
 print(f"Passed: {ind_tests_passed}/{ind_total_tests}")
 
 print("-----------------------------------------------------------------------")
-print(f"Passed: {simple_tests_passed}/{simple_total_tests}")
+print("Comapred Simple Tests with results from test_pd.")
+print(f"Functionally Idential: {simple_tests_passed}/{simple_total_tests}")
 if simple_total_tests - simple_tests_passed > 0:
-    print("Failed Tests:")
+    print("Different Traces:")
     for i in range(simple_total_tests - simple_tests_passed):
         print(f"{simple_failed_tests[i][1]} differences detected for test {simple_failed_tests[i][0]}")
 print("-----------------------------------------------------------------------")
