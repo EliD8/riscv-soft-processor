@@ -78,7 +78,7 @@ always@(*) begin
     rs2_bypass = 0;
   end
 
-  fetch_stall = (stall_1 | stall_2 | reset);
+  fetch_stall = (stall_1 | stall_2);
 end
 
 endmodule
