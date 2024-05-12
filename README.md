@@ -1,22 +1,3 @@
-# PD6: Running the 5-Stage Pipeline on an FPGA
-
-This README will guide you through mapping your PD5 design to FPGA hardware.
-
-**Deadline**: Tuesday, November 28th, 2023 at 11:59 PM
-
-**Weight**: 10% of total grade
-
-## Environment Setup
-
-### Getting the repository
-
-Use `git` to clone the repository to your Linux environment.
-This can be done using:
-
-```bash
-git clone ist-git@git.uwaterloo.ca:ece320-f23/project/rerler-pd6.git
-```
-
 ### Setup of simulators and environment variables
 
 Go to the root of the project repository and execute the command `source env.sh`.
@@ -37,45 +18,6 @@ Vivado Version ($VIVADO_VERSION): 	 Vivado v2022.1 (64-bit)
 If the script is unable to locate the verilator or vivado version, the corresponding line will be empty.
 If you are using `eceubuntu`, note that not all machines have vivado.
 If you run `env.sh` and it does not find vivado, try to connect to a different machine.
-
-## Specification
-The following description can also be found in the project-deliverables.pdf document on LEARN.
-
-You will take your design from PD5, and implement your core on an FPGA.
-You will then run programs on your core on the FPGA.
-You will use Vivado to generate the bitstream for your core.
-Specifically, you will implement your design on the PYNQ-Z1 FPGA board, which you may have seen if you have visited the lab.
-**Please go over the whole PD6 README before working on any of its tasks.**
-
-Start by copying your design from PD5 to PD6, including `verif/scripts/design.f` and all Verilog designs, except for `imemory.v` and `dmemory.v`.
-We provide you with these memory module implementations for PD6.
-
-## Probes
-
-You will need to fill in `design/signals.h` with your signal names in `design/code/pd.v` to wire up the probes.
-There are two new probes in PD6.
-You will need to specify the instance names of your `imemory` and `dmemory` modules.
-
-```verilog
-`define IMEMORY             ???
-`define DMEMORY             ???
-```
-
-## A Brief Introduction to FPGA Design
-
-We present a brief overview of the necessary steps in getting your core to work on the FPGA.
-For more information, refer to [this document](https://www.xilinx.com/content/dam/xilinx/support/documents/sw_manuals/xilinx2022_1/ug949-vivado-design-methodology.pdf) for a more complete picture including other important concepts in FPGA development such as system-level
-integration and specifying constraints.
-1. **RTL development**: The process of defining the modules and logic in Verilog code in previous PDs.
-2. **Logic simulation and verification**: The process of simulating and verifying your design by running it using verilator.
-3. **Logic synthesis**: The process of transforming an RTL design into a gate-level representation.
-Specifically for FPGAs, it corresponds to mapping the RTL design onto LUTs, registers, memories, and IOs to generate a netlist.
-1. **Implementation (place and route)**: For FPGAs, the implementation is the process of mapping the synthesized netlist onto a specific device, including the process of placement and routing for a specific FPGA chip type.
-The implementation step is also known as P&R or PNR.
-We use these terms interchangeably in this PD.
-1. **Bitstream generation**: The implemented design is converted into a stream of ones and zeros called the bitstream, which is simply a file that can be programmed onto the FPGA.
-
-Before attempting PD6, you should have completed steps 1 and 2 above.
 
 ## Procedure
 
@@ -572,28 +514,6 @@ You can now fix your errors based on what is captured in the waveform.
 
 **Step 6.**
 Finally, remove the `mark_debug` attributes you added and generate the bitstream again with `make bitstream` to confirm that your design works properly.
-
-## Submission
-
-The following are deliverables for PD6.
-
-1. Modify the register file logic and add `ram_style` attributes so that the tool maps it to BRAMs.
-You can verify this with `make estimate-resource`.
-2. Adjust your pipelining, stalling, flushing, and/or stalling logic to ensure your core functions correctly with the new BRAMs.
-3. Generate a bitstream using `make bitstream`.
-Ensure that there are no failures to meet timing requirements.
-1. (Optional, but recommended) Verify the bitstream correctness using `make post-synth-sim` and `make routed-sim`.
-2. Copy the bitstream to the board and run it with `make check`.
-Ensure that the output trace is correct for all [rv32-benchmarks](https://git.uwaterloo.ca/ece320-f23/rv32-benchmarks).
-
-When you are finished, remember to commit and push your changes to your GitLab repository.
-
-```bash
-git commit -am "<message>"
-git push origin master
-```
-
-Your most recently pushed code prior to the deadline will be treated as your submission when we grade.
 
 # Credits
 
